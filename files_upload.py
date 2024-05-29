@@ -30,7 +30,7 @@ class FilesUpload(object):
                 file_path = "./temp/" + img_file.name
                 st.write(file_path)
                            
-            img_file = image.load_img(file_path, color_mode='rgb', target_size=image_shape, interpolation='nearest')
+            img_file = image.load_img(file_path, grayscale = False, color_mode = 'rgb', target_size = image_shape, interpolation = 'nearest')
             img_file = image.img_to_array(img_file)
             img_file = np.expand_dims(img_file, axis = 0)
             img_file = img_file/255 #Normalizing the Image
