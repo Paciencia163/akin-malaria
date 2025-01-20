@@ -1,47 +1,57 @@
 import streamlit as st
 import numpy as np
-import os
 from tensorflow.keras.preprocessing import image
+import tempfile
+import os
 
-class FilesUpload(object):
+class FilesUpload:
 
     def __init__(self):
-        self.fileTypes = ["png", "jpg", "jpeg"]
+        self.file_types = ["png", "jpg", "jpeg"]
+        self.image_shape = (130, 130, 3)
 
-    def run(self):
-        st.image("osapi2.jpeg", caption="Akin - Osapi Care", use_column_width=True)  # Adiciona a imagem na seção "Sobre"
-
-        image_shape = (130, 130, 3)
-        st.set_option('deprecation.showfileUploaderEncoding', False)
-        img_file = st.file_uploader("Upload file", type = self.fileTypes)
-        show_img_file = st.empty()
+    def run(self, max_files=20):
+        st.image("osapi2.jpeg", caption="Akin - Osapi Care", use_column_width=True)
         
-        if not img_file:
-            show_img_file.info("Carregue o ficheiro nestes  formatos: " + ", ".join(["png", "jpg", "jpeg"]))
-  
-        if img_file is not None:
-            
-            st.image(img_file, width = 130) #use_column_width=True
-            file_details = {"File Name" : img_file.name, "File Type" : img_file.type, "File Size" : img_file.size}
-            st.write(file_details)
-            
-            with open(os.path.join("./temp/", img_file.name), 'wb') as f:
-                f.write(img_file.getbuffer())
-                file_path = "./temp/" + img_file.name
-                st.write(file_path)
-                           
-            img_file = image.load_img(file_path, grayscale = False, color_mode = 'rgb', target_size = image_shape, interpolation = 'nearest')
-            img_file = image.img_to_array(img_file)
-            img_file = np.expand_dims(img_file, axis = 0)
-            img_file = img_file/255 #Normalizing the Image
-            #st.text(img_file)
-            st.text(img_file.shape)
-            st.text("imagem = {}, Width = {}, Height = {}, color = {}".format(img_file.shape[0],
-                    img_file.shape[1], img_file.shape[2], img_file.shape[3]))
-            
-            os.remove(file_path)
-            
-            return img_file
-                
-        else:
-            st.write("Insira o formato correcto")
+        # Carregar múltiplos arquivos
+        img_files = st.file_uploader(
+            "Carregue até 20 arquivos", 
+            type=self.file_types, 
+            accept_multiple_files=True
+        )
+        
+        if not img_files:
+            st.info(f"Carregue arquivos nos formatos: {', '.join(self.file_types)}")
+            return None
+        
+        if len(img_files) > max_files:
+            st.error(f"Por favor, carregue no máximo {max_files} arquivos.")
+            return None
+
+        # Processar cada arquivo carregado
+        images = []
+        for img_file in img_files:
+            try:
+                # Exibir detalhes do arquivo
+                st.image(img_file, caption=f"Carregado: {img_file.name}", use_column_width=True)
+                st.write({"Nome": img_file.name, "Tipo": img_file.type, "Tamanho": img_file.size})
+
+                # Salvar temporariamente o arquivo e processar a imagem
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(img_file.name)[-1]) as temp:
+                    temp.write(img_file.getbuffer())
+                    temp_path = temp.name
+
+                # Pré-processar a imagem
+                img = image.load_img(
+                    temp_path,
+                    target_size=self.image_shape,
+                    color_mode='rgb'
+                )
+                img_array = image.img_to_array(img) / 255.0
+                images.append(img_array)
+            finally:
+                # Certificar-se de excluir o arquivo temporário
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+        
+        return images
